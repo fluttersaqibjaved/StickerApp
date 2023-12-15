@@ -1,10 +1,11 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:gallery_saver/gallery_saver.dart';
+import 'package:gametime/View/editimagepage_view.dart';
+import 'package:gametime/View/text_view.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:sizer/sizer.dart';
@@ -34,16 +35,7 @@ class _StickerViewState extends State<StickerView> {
     }
   }
 
-  Future<void> _openFile() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles();
 
-    if (result != null) {
-      File file = File(result.files.single.path!);
-      _setImage(file);
-    } else {
-      
-    }
-  }
 
   Future<void> _setImage(File pickedFile) async {
     File resizedImage = await _resizeImage(pickedFile);
@@ -51,6 +43,12 @@ class _StickerViewState extends State<StickerView> {
       _image = resizedImage;
     });
     _saveImageToGallery(resizedImage);
+       Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EditImagePage(imageFile: _image!),
+          ),
+        );
   }
 
   Future<File> _resizeImage(File imageFile) async {
@@ -66,14 +64,14 @@ class _StickerViewState extends State<StickerView> {
       img.Image resizedImage =
           img.copyResize(image, width: targetWidth, height: targetHeight);
 
-      List<int> resizedImageBytes = img.encodePng(resizedImage); // Convert the image to PNG bytes
-      Uint8List resizedUint8List = Uint8List.fromList(resizedImageBytes); // Convert to Uint8List
+      List<int> resizedImageBytes = img.encodePng(resizedImage); 
+      Uint8List resizedUint8List = Uint8List.fromList(resizedImageBytes); 
       final compressedImage = await FlutterImageCompress.compressWithList(
-        resizedUint8List, // Pass Uint8List to FlutterImageCompress
+        resizedUint8List, 
         minHeight: targetHeight,
         minWidth: targetWidth,
         quality: quality,
-        format: CompressFormat.webp, // Save as WebP format
+        format: CompressFormat.webp, 
       );
 
       resizedFile = File(imageFile.path.replaceAll(RegExp(r'\.(?:jpg|webp|png|gif)', caseSensitive: false), '_resized.webp'));
@@ -148,25 +146,26 @@ class _StickerViewState extends State<StickerView> {
                 ),
               ),
               SizedBox(height: 2.h),
-                GestureDetector(
+               
+               GestureDetector(
   onTap: () {
-    Navigator.pop(context);
-    _openFile();
+      Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => TextView(),
+                            ),
+                          );
   },
   child: Row(
     children: [
       Icon(
-        Icons.file_copy_sharp,
+        Icons.text_format,
         size: 30.0,
       ),
       SizedBox(width: 2.w),
-      Text('Select File'),
+      Text('Text'),
     ],
   ),
 ),
-
-              SizedBox(height: 2.h),
-              
 
             ],
           ),
@@ -175,39 +174,59 @@ class _StickerViewState extends State<StickerView> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Container(
-          width: 80.w,
-          height: 40.h,
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: Colors.green,
-            ),
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              _image != null ? Image.file(_image!) : Container(),
-              Positioned(
-                right: 150.0,
-                child: GestureDetector(
-                  onTap: () {
-                    _showBottomSheet(context);
-                  },
-                  child: Icon(
-                    Icons.camera_alt,
-                    size: 40.0,
-                    color: Colors.grey.withOpacity(0.8),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+     appBar: AppBar(
+      backgroundColor: Colors.green, 
+      title: Text('Sticker'),
+      leading: IconButton(
+        icon: Icon(Icons.arrow_back),
+        onPressed: () {
+          Navigator.pop(context);
+        },
       ),
-    );
-  }
+    ),
+    body: Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+        child: 
+           Container(
+                  width: 40.w,
+                  height: 20.h,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: Colors.green,
+                    ),
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      _image != null ? Padding(
+                        padding: EdgeInsets.all(16.0), 
+                        child: Image.file(_image!),
+                      ) : Container(),
+                      Positioned(
+                        right: 60.0,
+                        child: GestureDetector(
+                          onTap: () {
+                            _showBottomSheet(context);
+                          },
+                          child: Icon(
+                            Icons.camera_alt,
+                            size: 40.0,
+                            color: Colors.grey.withOpacity(0.8),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                
+        ),
+       
+      ),
+      ),
+    
+  );
+}
 }

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:gametime/View/Sticker_view.dart';
+import 'package:gametime/View/circle_view.dart';
 import 'package:sizer/sizer.dart';
 
 void main() {
@@ -16,11 +16,11 @@ class _MyAppState extends State<MyApp> {
     return Sizer(
       builder: (context, orientation, deviceType) {
         return MaterialApp(
-          title: 'GameTime',
+          title: 'Sticker',
           theme: ThemeData(
             primarySwatch: Colors.pink,
           ),
-          home: StickerView(), 
+          home: CircleView(), 
         );
       },
     );
