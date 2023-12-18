@@ -43,7 +43,7 @@ dependencies:
   image_cropper: ^4.0.1 
   shared_preferences: ^2.0.9
   gallery_saver: ^2.0.1
-
+  
 
  
   
@@ -57,6 +57,7 @@ dependencies:
    
   image_size_getter: ^2.1.2
   oktoast: ^3.4.0
+  screenshot: ^2.1.0
   
   
 dev_dependencies:

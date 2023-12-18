@@ -3,16 +3,20 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 
-class NewView extends StatefulWidget {
+
+
+
+
+class SquareView extends StatefulWidget {
   final File imageFile;
 
-  const NewView({Key? key, required this.imageFile}) : super(key: key);
+  const SquareView({Key? key, required this.imageFile}) : super(key: key);
 
   @override
-  State<NewView> createState() => _NewViewState();
+  State<SquareView> createState() => _SquareViewState();
 }
 
-class _NewViewState extends State<NewView> {
+class _SquareViewState extends State<SquareView> {
   late File imageFile;
   Offset? _startCrop;
   Offset? _endCrop;
@@ -26,7 +30,9 @@ class _NewViewState extends State<NewView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar:null,
+      appBar: AppBar(
+        title: Text('Image Cropping'),
+      ),
       body: Center(
         child: GestureDetector(
           onPanStart: (details) {
@@ -51,12 +57,10 @@ class _NewViewState extends State<NewView> {
             height: double.infinity,
             child: Stack(
               children: [
-                Image.file(
-                  imageFile,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
+                  Image.asset(
+                    'assets/images/Image.png',
+                    fit: BoxFit.contain,
+                  ),
                 if (_startCrop != null && _endCrop != null)
                   Positioned.fromRect(
                     rect: _getCropRect(),
@@ -70,6 +74,20 @@ class _NewViewState extends State<NewView> {
             ),
           ),
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          if (_startCrop != null && _endCrop != null) {
+            _cropImage();
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Please select an area to crop.'),
+              ),
+            );
+          }
+        },
+        child: Icon(Icons.crop),
       ),
     );
   }

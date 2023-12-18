@@ -1,116 +1,130 @@
-import 'dart:async';
-import 'dart:ui' as ui;
+//  import 'dart:io';
 
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+//         import 'package:flutter/material.dart';
+//         import 'dart:ui' as ui;
+//         import 'package:flutter/services.dart' show rootBundle;
+//         import 'dart:async';
+//         import 'dart:typed_data';
+//         import 'dart:math' as math;
+//         import 'package:path/path.dart';
+//         import 'package:path_provider/path_provider.dart';
 
-void main() {
-  runApp(MyApp());
-}
+//         class CircleView extends StatefulWidget {
+//           CircleView({Key key, this.title}) : super(key: key);
 
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Circular Crop Example',
-      home: CircularCropScreen(),
-    );
-  }
-}
+//           final String title;
 
-class CircularCropScreen extends StatefulWidget {
-  @override
-  _CircularCropScreenState createState() => _CircularCropScreenState();
-}
+//           @override
+//           _CircleViewState createState() => _CircleViewState();
+//         }
 
-class _CircularCropScreenState extends State<CircularCropScreen> {
-  ui.Image? _image;
-  Uint8List? _croppedImageBytes;
+//         class _CircleViewState extends State<CircleView> {
+//           ui.Image image;
+//           bool isImageloaded = false;
+//           void initState() {
+//             super.initState();
+//             init();
+//           }
 
-  @override
-  void initState() {
-    super.initState();
-    loadImage();
-  }
+//           Future<Null> init() async {
+//             final ByteData data = await rootBundle.load('assets/image.jpeg');
+//             image = await loadImage(Uint8List.view(data.buffer));
+//           }
 
-  Future<void> loadImage() async {
-    ByteData data = await rootBundle.load('assets/sample_image.jpg');
-    Uint8List bytes = data.buffer.asUint8List();
-    final completer = Completer<ui.Image>();
-    ui.decodeImageFromList(bytes, (img) {
-      setState(() {
-        _image = img;
-      });
-      completer.complete(img);
-    });
-    await completer.future;
-  }
+//           Future<ui.Image> loadImage(List<int> img) async {
+//             final Completer<ui.Image> completer = Completer();
+//             ui.decodeImageFromList(img, (ui.Image img) {
+//               setState(() {
+//                 isImageloaded = true;
+//               });
+//               return completer.complete(img);
+//             });
+//             return completer.future;
+//           }
 
-  Future<Uint8List?> _cropImage() async {
-    if (_image != null) {
-      final recorder = ui.PictureRecorder();
-      final canvas = Canvas(recorder);
-      final paint = Paint()..isAntiAlias = true;
-      final rect = Rect.fromCircle(center: Offset(150, 150), radius: 150);
+//           Widget _buildImage() {
+//             if (this.isImageloaded) {
+//               return CustomPaint(
+//                 painter: PngImagePainter(image: image),
+//               );
+//             } else {
+//               return Center(child: Text('loading'));
+//             }
+//           }
 
-      canvas.clipPath(Path()..addOval(rect));
-      canvas.drawImage(_image!, Offset.zero, paint);
+//           @override
+//           Widget build(BuildContext context) {
+//             return Scaffold(
+//                 appBar: AppBar(
+//                   title: Text(widget.title),
+//                 ),
+//                 body: Container(
+//                   child: _buildImage(),
+//                 ));
+//           }
+//         }
 
-      final picture = recorder.endRecording();
-      final img = await picture.toImage(300, 300);
-      final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
-      return byteData?.buffer.asUint8List();
-    }
-    return null;
-  }
+//         class PngImagePainter extends CustomPainter {
+//           PngImagePainter({
+//             this.image,
+//           });
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Circular Crop'),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            _image != null
-                ? Container(
-                    width: 300,
-                    height: 300,
-                    child: ClipOval(
-                      child:  Image.asset(
-            'assets/images/Image.png',
-            fit: BoxFit.contain,
-          ),
-                    ),
-                  )
-                : CircularProgressIndicator(),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () async {
-                Uint8List? croppedImage = await _cropImage();
-                setState(() {
-                  _croppedImageBytes = croppedImage;
-                });
-              },
-              child: Text('Crop Image'),
-            ),
-            SizedBox(height: 20),
-            _croppedImageBytes != null
-                ? ClipOval(
-                    child: Image.memory(
-                      _croppedImageBytes!,
-                      width: 200,
-                      height: 200,
-                      fit: BoxFit.cover,
-                      key: UniqueKey(),
-                    ),
-                  )
-                : Container(),
-          ],
-        ),
-      ),
-    );
-  }
-}
+//           ui.Image image;
+
+//           @override
+//           void paint(Canvas canvas, Size size) {
+//             _drawCanvas(size, canvas);
+//             _saveCanvas(size);
+//           }
+
+//           Canvas _drawCanvas(Size size, Canvas canvas) {
+//             final center = Offset(150, 50);
+//             final radius = math.min(size.width, size.height) / 8;
+
+           
+//             Paint paintCircle = Paint()..color = Colors.black;
+//             Paint paintBorder = Paint()
+//               ..color = Colors.white
+//               ..strokeWidth = size.width / 36
+//               ..style = PaintingStyle.stroke;
+//             canvas.drawCircle(center, radius, paintCircle);
+//             canvas.drawCircle(center, radius, paintBorder);
+
+//             double drawImageWidth = 0;
+//             var drawImageHeight = -size.height * 0.8;
+
+//             Path path = Path()
+//               ..addOval(Rect.fromLTWH(drawImageWidth, drawImageHeight,
+//                   image.width.toDouble(), image.height.toDouble()));
+
+//             canvas.clipPath(path);
+
+//             canvas.drawImage(image, Offset(drawImageWidth, drawImageHeight), Paint());
+//             return canvas;
+//           }
+
+//           _saveCanvas(Size size) async {
+//             var pictureRecorder = ui.PictureRecorder();
+//             var canvas = Canvas(pictureRecorder);
+//             var paint = Paint();
+//             paint.isAntiAlias = true;
+
+//             _drawCanvas(size, canvas);
+
+//             var pic = pictureRecorder.endRecording();
+//             ui.Image img = await pic.toImage(image.width, image.height);
+//             var byteData = await img.toByteData(format: ui.ImageByteFormat.png);
+//             var buffer = byteData.buffer.asUint8List();
+//             var documentDirectory = await getApplicationDocumentsDirectory();
+//             File file = File(join(documentDirectory.path,
+//                 '${DateTime.now().toUtc().toIso8601String()}.png'));
+//             file.writeAsBytesSync(buffer);
+
+//             print(file.path);
+//           }
+
+//           @override
+//           bool shouldRepaint(CustomPainter oldDelegate) {
+//             return false;
+//           }
+//         }

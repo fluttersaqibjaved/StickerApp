@@ -1,20 +1,65 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:gametime/View/free_view.dart';
+import 'package:flutter/rendering.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class EditImagePage extends StatefulWidget {
+class EditImageView extends StatefulWidget {
   final File imageFile;
 
-  const EditImagePage({Key? key, required this.imageFile}) : super(key: key);
+  const EditImageView({Key? key, required this.imageFile}) : super(key: key);
 
   @override
-  State<EditImagePage> createState() => _EditImagePageState();
+  State<EditImageView> createState() => _EditImageViewState();
 }
 
-class _EditImagePageState extends State<EditImagePage> {
+class _EditImageViewState extends State<EditImageView> {
+   List<Offset> _points = <Offset>[];
+  GlobalKey _repaintKey = GlobalKey();
+
+  Future<Uint8List?> _cropImage() async {
+    try {
+      RenderRepaintBoundary boundary =
+          _repaintKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      return byteData?.buffer.asUint8List();
+    } catch (e) {
+      print('Error while cropping image: $e');
+      return null;
+    }
+  }
+
+  void _handlePanStart(DragStartDetails details) {
+    setState(() {
+      _points.add(details.localPosition);
+    });
+  }
+
+  void _handlePanUpdate(DragUpdateDetails details) {
+    setState(() {
+      _points.add(details.localPosition);
+    });
+  }
+
+  void _handlePanEnd(DragEndDetails details) async {
+    Uint8List? imageBytes = await _cropImage();
+    setState(() {
+      _points.clear();
+    });
+  }
+
+  void _performFreeHandCrop() async {
+    Uint8List? imageBytes = await _cropImage();
+    
+    if (imageBytes != null) {
+      
+    }
+  }
   late File imageFile;
   TextEditingController _textEditingController = TextEditingController();
   String _displayedText = "Your text here";
@@ -22,11 +67,9 @@ class _EditImagePageState extends State<EditImagePage> {
   Offset _textPosition = Offset(50, 50);
   Offset _startPosition = Offset.zero;
   bool _isTextContainerVisible = false;
-  Color _selectedColor = Colors.red;
-  double _selectedFontSize = 20.0;
-  bool _isBold = false;
   bool _isFlippedHorizontally = false;
   bool _showCropOptions = false;
+  bool _isCircularCrop = false;
   late SharedPreferences _prefs;
   late String _userText;
   late List<Color> _availableColors;
@@ -34,6 +77,15 @@ class _EditImagePageState extends State<EditImagePage> {
   late double _textSize;
   late FontWeight _textWeight;
   late FontStyle _textStyle;
+ 
+void _performSquareCrop() async {
+  
+  Uint8List? imageBytes = await _cropImage();
+  
+  if (imageBytes != null) {
+   
+  }
+}
 
   @override
   void initState() {
@@ -55,10 +107,6 @@ class _EditImagePageState extends State<EditImagePage> {
     });
   }
 
-  void _saveChanges() {
-   
-  }
-
   void _initializeValues() {
     _userText = 'Customizable Text';
     _availableColors = [
@@ -67,10 +115,8 @@ class _EditImagePageState extends State<EditImagePage> {
       Colors.green,
       Colors.orange,
       Colors.purple,
-      Colors.transparent,
       Colors.pink,
       Colors.yellow,
-      Colors.white,
       Colors.brown,
       Colors.grey,
       Colors.black,
@@ -97,6 +143,7 @@ class _EditImagePageState extends State<EditImagePage> {
     });
   }
 
+
   void _savePreferences() {
     _prefs.setString('user_text', _userText);
     _prefs.setInt('text_color', _textColor.value);
@@ -110,39 +157,79 @@ class _EditImagePageState extends State<EditImagePage> {
   Color _getColorFromInt(int value) {
     return Color(value);
   }
+void _toggleCircularCrop() {
+    setState(() {
+      _isCircularCrop = !_isCircularCrop;
+    });
+  }
+  
+   void _saveChanges() {
+   
+    
 
+    print('Changes Saved');
+  }
+  
   @override
   Widget build(BuildContext context) {
     bool isTextNotEmpty = _displayedText.isNotEmpty;
+  Widget imageWidget = Image.file(
+      imageFile,
+      fit: BoxFit.cover,
+    );
 
+    if (_isCircularCrop) {
+      imageWidget = ClipOval(
+        child: imageWidget,
+      );
+    } 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.green,
-        title: Text('Edit Image'),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
+        title: Text('Edit Image', style: TextStyle(color: Colors.white),),
+        leading:
+        IconButton(
+  icon: Icon(
+    Icons.arrow_back,
+    color: Colors.white,
+  ),
+  onPressed: () {
+   Navigator.pop(context);
+  },
+),
         actions: [
-          IconButton(
-            icon: Icon(Icons.save),
-            onPressed: _saveChanges,
-          ),
+        IconButton(
+  icon: Icon(
+    Icons.save,
+    color: Colors.white, 
+  ),
+  onPressed: () {
+    
+  },
+)
+
         ],
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  _showCropOptions = !_showCropOptions;
-                  _toggleTextContainerVisibility();
-                });
-              },
+            RepaintBoundary(
+            key: _repaintKey,
+            child:
+              
+           GestureDetector(
+  onTap: () {
+    setState(() {
+      
+      _toggleTextContainerVisibility();
+    });
+  },
+  
+  onPanStart: _handlePanStart,
+  onPanUpdate: _handlePanUpdate,
+  onPanEnd: _handlePanEnd,
+  
               child: Stack(
                 children: [
                   Transform(
@@ -159,7 +246,7 @@ class _EditImagePageState extends State<EditImagePage> {
                             height: 200,
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(1),
-                              child: Image.file(imageFile, fit: BoxFit.contain),
+                             child: imageWidget,
                             ),
                           ),
                         ),
@@ -192,11 +279,10 @@ class _EditImagePageState extends State<EditImagePage> {
                           child: TextFormField(
                             controller: _textEditingController,
                             style: TextStyle(
-                              color: _selectedColor,
-                              fontSize: _selectedFontSize,
-                              fontWeight: _isBold
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
+                              color: _textColor,
+                              fontSize: _textSize,
+                              fontWeight: _textWeight,
+                              fontStyle: _textStyle,
                             ),
                             decoration: InputDecoration(
                               hintText: 'Your text here',
@@ -217,9 +303,14 @@ class _EditImagePageState extends State<EditImagePage> {
                 ],
               ),
             ),
+            ),
+               CustomPaint(
+                    painter: TouchPainter(points: _points),
+                  ),
           ],
         ),
       ),
+
       bottomNavigationBar: Container(
         padding: EdgeInsets.all(8.0),
         color: Colors.green,
@@ -238,7 +329,7 @@ class _EditImagePageState extends State<EditImagePage> {
                             _availableColors[random.nextInt(_availableColors.length)];
                       });
                     },
-                    child: Text('Color'),
+                    child: Text('Color',style: TextStyle(color: Colors.white),),
                   ),
                   TextButton(
                     onPressed: () {
@@ -246,7 +337,7 @@ class _EditImagePageState extends State<EditImagePage> {
                         _textSize = (_textSize == 20.0) ? 16.0 : 20.0;
                       });
                     },
-                    child: Text(_textSize == 20.0 ? 'Size' : 'Size'),
+                    child: Text(_textSize == 20.0 ? 'Decrease' : 'Increase',style: TextStyle(color: Colors.white),),
                   ),
                   TextButton(
                     onPressed: () {
@@ -256,7 +347,7 @@ class _EditImagePageState extends State<EditImagePage> {
                             : FontWeight.bold;
                       });
                     },
-                    child: Text(_textWeight == FontWeight.bold ? 'Unbold' : 'Bold'),
+                    child: Text(_textWeight == FontWeight.bold ? 'Unbold' : 'Bold',style: TextStyle(color: Colors.white),),
                   ),
                   TextButton(
                     onPressed: () {
@@ -270,42 +361,35 @@ class _EditImagePageState extends State<EditImagePage> {
                       (_textStyle == FontStyle.italic) ? 'Normal' : 'Italic',
                       style: TextStyle(
                         fontStyle: _textStyle,
+                        color: Colors.white,
                       ),
                     ),
                   ),
                 ],
               ),
-             if (_showCropOptions) 
+            if (_showCropOptions)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  
-                 TextButton(
-              onPressed: () {
-                setState(() {
-                    Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => FreeView()),
-            );
-                });
-              },
-              child: Text('Free Hand'),
-            ),
-                   TextButton(
-              onPressed: () {
-                setState(() {
-                  
-                });
-              },
-              child: Text('Square'),
-            ),
-                 TextButton(
-              onPressed: () {
-                setState(() {
-                  
-                });
-              },
-              child: Text('Circle'),
+                    TextButton(
+          onPressed: _performFreeHandCrop,
+          child: Text('Free Hand',style: TextStyle(color: Colors.white),
+          ),
+          ),
+ TextButton(
+  onPressed: _performSquareCrop,
+  child: Text(
+    'Square Crop',
+    style: TextStyle(color: Colors.white),
+  ),
+),
+
+  TextButton(
+              onPressed: _toggleCircularCrop,
+              child: Text(
+                _isCircularCrop ? 'Square' : 'Circle',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
                 ],
               ),
@@ -313,46 +397,96 @@ class _EditImagePageState extends State<EditImagePage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      _angle += 90 * (3.1415926535 / 180);
-                    });
-                  },
-                  icon: Icon(Icons.rotate_left),
-                  tooltip: 'Rotate',
-                ),
-                IconButton(
-                  onPressed: () {
-                    
-                    setState(() {
-                      _showCropOptions = false;
-                    });
-                  },
-                  icon: Icon(Icons.crop),
-                  tooltip: 'Crop',
-                ),
-                IconButton(
-                  onPressed: () {
-                    _toggleTextContainerVisibility();
-                  },
-                  icon: Icon(Icons.text_decrease_sharp),
-                  tooltip: 'Text',
-                ),
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      _isFlippedHorizontally = !_isFlippedHorizontally;
-                    });
-                  },
-                  icon: Icon(Icons.flip),
-                  tooltip: 'Flip',
-                ),
+                  Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            onPressed: () {
+              setState(() {
+                _angle += 90 * (pi / 180);
+              });
+            },
+           icon: Icon(Icons.rotate_left,color: Colors.white,),
+            
+          ),
+          Text('Rotate', style: TextStyle(fontSize: 12,color: Colors.white,)),
+        ],
+      ),
+               Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            onPressed: () {
+              setState(() {
+                _showCropOptions = !_showCropOptions;
+              });
+            },
+            icon: Icon(Icons.crop, size: 28,color: Colors.white,),
+            
+          ),
+          Text('Crop', style: TextStyle(fontSize: 12,color: Colors.white)),
+        ],
+      ),
+       Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            onPressed: () {
+              setState(() {
+                _toggleTextContainerVisibility();
+              });
+            },
+            icon: Icon(Icons.text_fields,color: Colors.white,),
+            
+          ),
+          Text('Text', style: TextStyle(fontSize: 12,color: Colors.white,)),
+        ],
+      ),
+        Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            onPressed: () {
+              setState(() {
+                 _isFlippedHorizontally = !_isFlippedHorizontally;
+              });
+            },
+            icon: Icon(Icons.flip,color: Colors.white,),
+            
+          ),
+          Text('Flip', style: TextStyle(fontSize: 12,color: Colors.white,)),
+        ],
+      ),       
               ],
             ),
           ],
         ),
       ),
     );
+  }
+}
+
+class TouchPainter extends CustomPainter {
+  final List<Offset> points;
+
+  TouchPainter({required this.points});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()
+      ..color = Colors.red
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 7.0;
+
+    for (int i = 0; i < points.length - 1; i++) {
+      if (points[i] != null && points[i + 1] != null) {
+        canvas.drawLine(points[i], points[i + 1], paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return true;
   }
 }

@@ -5,9 +5,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
-
-
-
 class FreeView extends StatefulWidget {
   const FreeView({Key? key}) : super(key: key);
 
@@ -48,8 +45,15 @@ class _FreeViewState extends State<FreeView> {
     Uint8List? imageBytes = await _cropImage();
     setState(() {
       _points.clear();
-     
     });
+  }
+
+  void _performFreeHandCrop() async {
+    Uint8List? imageBytes = await _cropImage();
+    
+    if (imageBytes != null) {
+      
+    }
   }
 
   @override
@@ -65,10 +69,10 @@ class _FreeViewState extends State<FreeView> {
               onPanEnd: _handlePanEnd,
               child: Stack(
                 children: <Widget>[
-                 Image.asset(
-            'assets/images/Image.png',
-            fit: BoxFit.contain,
-          ),
+                  Image.asset(
+                    'assets/images/Image.png',
+                    fit: BoxFit.contain,
+                  ),
                   CustomPaint(
                     painter: TouchPainter(points: _points),
                   ),
@@ -77,17 +81,10 @@ class _FreeViewState extends State<FreeView> {
             ),
           ),
         ),
-        
-        _points.isEmpty
-            ? Container()
-            : Expanded(
-                child: Image.memory(
-                  Uint8List(0), 
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
-              ),
+        TextButton(
+          onPressed: _performFreeHandCrop,
+          child: Text('Crop Image'),
+        ),
       ],
     );
   }
