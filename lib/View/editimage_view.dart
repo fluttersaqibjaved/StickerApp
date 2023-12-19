@@ -6,6 +6,10 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:gallery_saver/gallery_saver.dart';
+import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class EditImageView extends StatefulWidget {
@@ -34,32 +38,49 @@ class _EditImageViewState extends State<EditImageView> {
     }
   }
 
-  void _handlePanStart(DragStartDetails details) {
-    setState(() {
-      _points.add(details.localPosition);
-    });
-  }
+void _handlePanStart(DragStartDetails details) {
+  setState(() {
+    _points.add(details.localPosition);
+  });
+}
 
-  void _handlePanUpdate(DragUpdateDetails details) {
-    setState(() {
-      _points.add(details.localPosition);
-    });
-  }
+void _handlePanUpdate(DragUpdateDetails details) {
+  setState(() {
+    _points.add(details.localPosition);
+  });
+}
 
-  void _handlePanEnd(DragEndDetails details) async {
-    Uint8List? imageBytes = await _cropImage();
-    setState(() {
-      _points.clear();
-    });
-  }
+void _handlePanEnd(DragEndDetails details) async {
+  Uint8List? imageBytes = await _cropImage();
+  setState(() {
+    _points.clear();
+  });
+}
 
-  void _performFreeHandCrop() async {
-    Uint8List? imageBytes = await _cropImage();
+void _performFreeHandCrop() async {
+  Uint8List? imageBytes = await _cropImage();
+    Rect cropRect = _getCropRect();
+    final image = img.decodeImage(await imageFile.readAsBytes())!;
+    img.Image croppedImage = img.copyCrop(
+      image,
+      cropRect.left.toInt(),
+      cropRect.top.toInt(),
+      cropRect.width.toInt(),
+      cropRect.height.toInt(),
+    );
+
+    final Directory extDir = Directory('/storage/emulated/0/YourDirectory');
+    final String imagePath = '${extDir.path}/cropped_image.png';
+    File(imagePath)
+      ..createSync(recursive: true)
+      ..writeAsBytesSync(img.encodePng(croppedImage));
+
+    print('Cropped image saved at: $imagePath');
+  if (imageBytes != null) {
     
-    if (imageBytes != null) {
-      
-    }
   }
+}
+ 
   late File imageFile;
   TextEditingController _textEditingController = TextEditingController();
   String _displayedText = "Your text here";
@@ -70,6 +91,9 @@ class _EditImageViewState extends State<EditImageView> {
   bool _isFlippedHorizontally = false;
   bool _showCropOptions = false;
   bool _isCircularCrop = false;
+  bool _showTextEditingOptions = false;
+Offset? _startCrop;
+  Offset? _endCrop;
   late SharedPreferences _prefs;
   late String _userText;
   late List<Color> _availableColors;
@@ -78,14 +102,6 @@ class _EditImageViewState extends State<EditImageView> {
   late FontWeight _textWeight;
   late FontStyle _textStyle;
  
-void _performSquareCrop() async {
-  
-  Uint8List? imageBytes = await _cropImage();
-  
-  if (imageBytes != null) {
-   
-  }
-}
 
   @override
   void initState() {
@@ -126,6 +142,115 @@ void _performSquareCrop() async {
     _textWeight = FontWeight.normal;
     _textStyle = FontStyle.normal;
   }
+Future<File> _resizeImage(File imageFile) async {
+    img.Image image = img.decodeImage(imageFile.readAsBytesSync())!;
+    const int maxSizeBytes = 100 * 1024;
+    const int targetWidth = 512;
+    const int targetHeight = 512;
+
+    int quality = 90;
+    File resizedFile;
+
+    do {
+      img.Image resizedImage =
+          img.copyResize(image, width: targetWidth, height: targetHeight);
+
+      List<int> resizedImageBytes = img.encodePng(resizedImage);
+      Uint8List resizedUint8List = Uint8List.fromList(resizedImageBytes);
+      final compressedImage = await FlutterImageCompress.compressWithList(
+        resizedUint8List,
+        minHeight: targetHeight,
+        minWidth: targetWidth,
+        quality: quality,
+        format: CompressFormat.webp,
+      );
+
+      resizedFile = File(imageFile.path.replaceAll(
+          RegExp(r'\.(?:jpg|webp|png|gif)', caseSensitive: false),
+          '_resized.webp'));
+      await resizedFile.writeAsBytes(compressedImage);
+
+      quality -= 5;
+    } while (resizedFile.lengthSync() > maxSizeBytes && quality > 0);
+
+    return resizedFile;
+  }
+Future<void> _saveImageToGallery(Uint8List imageBytes) async {
+  try {
+    img.Image image = img.decodeImage(imageBytes)!;
+    img.Image resizedImage = img.copyResize(image, width: 512, height: 512);
+
+    Uint8List resizedBytes = resizedImage.getBytes(format: img.Format.rgba);
+
+    if (resizedBytes.lengthInBytes > 100 * 1024) {
+      resizedBytes = await FlutterImageCompress.compressWithList(
+        resizedBytes,
+        minHeight: 512,
+        minWidth: 512,
+        quality: 90,
+        format: CompressFormat.webp,
+      );
+    }
+
+    File finalImage = File(imageFile.path.replaceAll(
+      RegExp(r'\.(?:jpg|webp|png|gif)', caseSensitive: false),
+      '_resized.webp',
+    ));
+    await finalImage.writeAsBytes(resizedBytes);
+
+    String savedImagePath = finalImage.path;
+    await GallerySaver.saveImage(savedImagePath);
+    print('Image saved to gallery: $savedImagePath');
+  } catch (e) {
+    print('Error saving image: $e');
+  }
+}
+ void _performSquareCrop() async {
+    if (_startCrop != null && _endCrop != null) {
+      Uint8List? imageBytes = await _cropImage(); 
+
+      
+      if (imageBytes != null) {
+        Rect cropRect = _getCropRect(); 
+
+        
+        final image = img.decodeImage(await imageFile.readAsBytes())!;
+        
+        
+        img.Image croppedImage = img.copyCrop(
+          image,
+          cropRect.left.toInt(),
+          cropRect.top.toInt(),
+          cropRect.width.toInt(),
+          cropRect.height.toInt(),
+        );
+
+        
+        final Directory extDir = Directory('/storage/emulated/0/YourDirectory');
+        final String imagePath = '${extDir.path}/cropped_image.png';
+        File(imagePath)
+          ..createSync(recursive: true)
+          ..writeAsBytesSync(img.encodePng(croppedImage));
+
+        print('Cropped image saved at: $imagePath');
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please select an area to crop.'),
+        ),
+      );
+    }
+  }
+
+
+ Rect _getCropRect() {
+    double left = _startCrop!.dx < _endCrop!.dx ? _startCrop!.dx : _endCrop!.dx;
+    double top = _startCrop!.dy < _endCrop!.dy ? _startCrop!.dy : _endCrop!.dy;
+    double width = (_startCrop!.dx - _endCrop!.dx).abs();
+    double height = (_startCrop!.dy - _endCrop!.dy).abs();
+    return Rect.fromLTWH(left, top, width, height);
+  }
 
   Future<void> _loadPreferences() async {
     _prefs = await SharedPreferences.getInstance();
@@ -162,17 +287,15 @@ void _toggleCircularCrop() {
       _isCircularCrop = !_isCircularCrop;
     });
   }
-  
-   void _saveChanges() {
-   
-    
-
-    print('Changes Saved');
+  void _toggleTextEditingOptionsVisibility() {
+    setState(() {
+      _isTextContainerVisible = !_isTextContainerVisible;
+    });
   }
+  
   
   @override
   Widget build(BuildContext context) {
-    bool isTextNotEmpty = _displayedText.isNotEmpty;
   Widget imageWidget = Image.file(
       imageFile,
       fit: BoxFit.cover,
@@ -198,15 +321,21 @@ void _toggleCircularCrop() {
   },
 ),
         actions: [
-        IconButton(
+     IconButton(
   icon: Icon(
     Icons.save,
     color: Colors.white, 
   ),
-  onPressed: () {
-    
+  onPressed: () async {
+    Uint8List? croppedImage = await _cropImage(); 
+    if (croppedImage != null) {
+      await _saveImageToGallery(croppedImage);
+    } else {
+      print('Error: Unable to save the image.');
+    }
   },
-)
+),
+
 
         ],
       ),
@@ -221,7 +350,23 @@ void _toggleCircularCrop() {
            GestureDetector(
   onTap: () {
     setState(() {
-      
+        onPanStart: (details) {
+            setState(() {
+              _startCrop = details.localPosition;
+              _endCrop = details.localPosition;
+            });
+          };
+          onPanUpdate: (details) {
+            setState(() {
+              _endCrop = details.localPosition;
+            });
+          };
+          onPanEnd: (details) {
+            setState(() {
+              _startCrop = null;
+              _endCrop = null;
+            });
+          };
       _toggleTextContainerVisibility();
     });
   },
@@ -253,52 +398,50 @@ void _toggleCircularCrop() {
                       ),
                     ),
                   ),
-                  Positioned(
-                    left: _textPosition.dx,
-                    top: _textPosition.dy,
-                    child: Visibility(
-                      visible: _isTextContainerVisible,
-                      child: GestureDetector(
-                        onTapDown: (details) {
-                          _startPosition =
-                              details.localPosition - _textPosition;
-                        },
-                        onPanUpdate: (details) {
-                          setState(() {
-                            _textPosition =
-                                details.localPosition - _startPosition;
-                          });
-                        },
-                        child: Container(
-                          width: 200,
-                          height: 50,
-                          color: _displayedText.isEmpty
-                              ? Colors.white.withOpacity(0.5)
-                              : Colors.white.withOpacity(0),
-                          padding: EdgeInsets.all(8),
-                          child: TextFormField(
-                            controller: _textEditingController,
-                            style: TextStyle(
-                              color: _textColor,
-                              fontSize: _textSize,
-                              fontWeight: _textWeight,
-                              fontStyle: _textStyle,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: 'Your text here',
-                              hintStyle:
-                                  TextStyle(color: Colors.black.withOpacity(0.5)),
-                              border: InputBorder.none,
-                            ),
-                            onChanged: (value) {
-                              setState(() {
-                                _displayedText = value;
-                              });
-                            },
-                          ),
-                        ),
+                  Visibility(
+              visible: _isTextContainerVisible,
+              child: Positioned(
+                left: _textPosition.dx,
+                top: _textPosition.dy,
+                child: GestureDetector(
+                  onTapDown: (details) {
+                    _startPosition = details.localPosition - _textPosition;
+                  },
+                  onPanUpdate: (details) {
+                    setState(() {
+                      _textPosition = details.localPosition - _startPosition;
+                    });
+                  },
+                  child: Container(
+                    width: 200,
+                    height: 50,
+                    color: _displayedText.isEmpty
+                        ? Colors.white.withOpacity(0.5)
+                        : Colors.white.withOpacity(0),
+                    padding: EdgeInsets.all(8),
+                    child: TextFormField(
+                      controller: _textEditingController,
+                      style: TextStyle(
+                        color: _textColor,
+                        fontSize: _textSize,
+                        fontWeight: _textWeight,
+                        fontStyle: _textStyle,
                       ),
+                      decoration: InputDecoration(
+                        hintText: 'Your text here',
+                        hintStyle:
+                            TextStyle(color: Colors.black.withOpacity(0.5)),
+                        border: InputBorder.none,
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _displayedText = value;
+                        });
+                      },
                     ),
+                  ),
+                ),
+              ),
                   ),
                 ],
               ),
@@ -313,32 +456,98 @@ void _toggleCircularCrop() {
 
       bottomNavigationBar: Container(
         padding: EdgeInsets.all(8.0),
-        color: Colors.green,
+        color: Colors.white,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (isTextNotEmpty)
+            if (_showTextEditingOptions)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        final random = Random();
-                        _textColor =
-                            _availableColors[random.nextInt(_availableColors.length)];
-                      });
-                    },
-                    child: Text('Color',style: TextStyle(color: Colors.white),),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _textSize = (_textSize == 20.0) ? 16.0 : 20.0;
-                      });
-                    },
-                    child: Text(_textSize == 20.0 ? 'Decrease' : 'Increase',style: TextStyle(color: Colors.white),),
-                  ),
+               TextButton(
+  onPressed: () {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        Color selectedColor = _textColor;
+
+        return AlertDialog(
+          title: Text('Colors'),
+          content: SingleChildScrollView(
+            child: ColorPicker(
+              pickerColor: selectedColor,
+              onColorChanged: (Color color) {
+                selectedColor = color;
+              },
+              showLabel: true,
+              pickerAreaHeightPercent: 0.8,
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('OK', style: TextStyle(color: Colors.green)),
+              onPressed: () {
+                setState(() {
+                  _textColor = selectedColor;
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  },
+  child: Text('Color', style: TextStyle(color: Colors.green)),
+),
+
+                TextButton(
+  onPressed: () {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        double selectedSize = _textSize;
+
+        return AlertDialog(
+          title: Text('Choose Text Size'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Slider(
+                  value: selectedSize,
+                  min: 1,
+                  max: 200,
+                  divisions: 199,
+                  label: selectedSize.round().toString(),
+                  onChanged: (double value) {
+                    setState(() {
+                      selectedSize = value;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('OK', style: TextStyle(color: Colors.green)),
+              onPressed: () {
+                setState(() {
+                  _textSize = selectedSize;
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  },
+  child: Text('Size', style: TextStyle(color: Colors.green)),
+),
+
+
                   TextButton(
                     onPressed: () {
                       setState(() {
@@ -347,7 +556,7 @@ void _toggleCircularCrop() {
                             : FontWeight.bold;
                       });
                     },
-                    child: Text(_textWeight == FontWeight.bold ? 'Unbold' : 'Bold',style: TextStyle(color: Colors.white),),
+                    child: Text(_textWeight == FontWeight.bold ? 'Unbold' : 'Bold', style: TextStyle(color: Colors.green),),
                   ),
                   TextButton(
                     onPressed: () {
@@ -361,7 +570,7 @@ void _toggleCircularCrop() {
                       (_textStyle == FontStyle.italic) ? 'Normal' : 'Italic',
                       style: TextStyle(
                         fontStyle: _textStyle,
-                        color: Colors.white,
+                        color: Colors.green,
                       ),
                     ),
                   ),
@@ -373,22 +582,33 @@ void _toggleCircularCrop() {
                 children: [
                     TextButton(
           onPressed: _performFreeHandCrop,
-          child: Text('Free Hand',style: TextStyle(color: Colors.white),
+          child: Text('Free Hand', style: TextStyle(color: Colors.green),
           ),
           ),
- TextButton(
-  onPressed: _performSquareCrop,
+TextButton(
+  onPressed: () {
+    if (_startCrop != null && _endCrop != null) {
+      _cropImage(); 
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please select an area to crop.'),
+        ),
+      );
+    }
+  },
   child: Text(
-    'Square Crop',
-    style: TextStyle(color: Colors.white),
+    'Square',
+     style: TextStyle(color: Colors.green),
   ),
 ),
+
 
   TextButton(
               onPressed: _toggleCircularCrop,
               child: Text(
                 _isCircularCrop ? 'Square' : 'Circle',
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(color: Colors.green),
               ),
             ),
                 ],
@@ -406,10 +626,10 @@ void _toggleCircularCrop() {
                 _angle += 90 * (pi / 180);
               });
             },
-           icon: Icon(Icons.rotate_left,color: Colors.white,),
+           icon: Icon(Icons.rotate_left,color: Colors.green),
             
           ),
-          Text('Rotate', style: TextStyle(fontSize: 12,color: Colors.white,)),
+          Text('Rotate', style: TextStyle(color: Colors.green),),
         ],
       ),
                Column(
@@ -421,10 +641,10 @@ void _toggleCircularCrop() {
                 _showCropOptions = !_showCropOptions;
               });
             },
-            icon: Icon(Icons.crop, size: 28,color: Colors.white,),
+            icon: Icon(Icons.crop, size: 28,color: Colors.green),
             
           ),
-          Text('Crop', style: TextStyle(fontSize: 12,color: Colors.white)),
+          Text('Crop', style: TextStyle(color: Colors.green),),
         ],
       ),
        Column(
@@ -433,13 +653,14 @@ void _toggleCircularCrop() {
           IconButton(
             onPressed: () {
               setState(() {
-                _toggleTextContainerVisibility();
+               _toggleTextEditingOptionsVisibility();
+               _showTextEditingOptions = !_showTextEditingOptions;
               });
             },
-            icon: Icon(Icons.text_fields,color: Colors.white,),
+            icon: Icon(Icons.text_fields,color: Colors.green),
             
           ),
-          Text('Text', style: TextStyle(fontSize: 12,color: Colors.white,)),
+          Text('Text', style: TextStyle(color: Colors.green),),
         ],
       ),
         Column(
@@ -451,12 +672,13 @@ void _toggleCircularCrop() {
                  _isFlippedHorizontally = !_isFlippedHorizontally;
               });
             },
-            icon: Icon(Icons.flip,color: Colors.white,),
+            icon: Icon(Icons.flip,color: Colors.green,),
             
           ),
-          Text('Flip', style: TextStyle(fontSize: 12,color: Colors.white,)),
+          Text('Flip', style: TextStyle(color: Colors.green),),
         ],
-      ),       
+      ),    
+         
               ],
             ),
           ],
@@ -464,7 +686,9 @@ void _toggleCircularCrop() {
       ),
     );
   }
+   
 }
+
 
 class TouchPainter extends CustomPainter {
   final List<Offset> points;

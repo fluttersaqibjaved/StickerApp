@@ -78,7 +78,7 @@ class _StickerViewState extends State<StickerView> {
           '_resized.webp'));
       await resizedFile.writeAsBytes(compressedImage);
 
-      quality -= 5;
+      quality -= 300;
     } while (resizedFile.lengthSync() > maxSizeBytes && quality > 0);
 
     return resizedFile;
@@ -225,7 +225,7 @@ class _StickerViewState extends State<StickerView> {
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 16),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               for (int i = 0; i < 10; i++)
@@ -248,6 +248,7 @@ class _StickerViewState extends State<StickerView> {
                             ),
                           ),
                         ),
+                        SizedBox(width: 8.0), 
                     ],
                   ),
                 ),
